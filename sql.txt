@@ -1,0 +1,445 @@
+-- Verifica as contas utilizadas no mês para a fórmula de pagamento
+
+select 
+f.codigo,
+f.ordem,
+f.resultado,
+g.descricao,
+f.expressao
+
+-- fc.codigo,
+-- fc.competencia,
+-- fc.modulo
+
+from
+aac_formulas_de_calculo fc
+left join aac_formula f on f.codigo = fc.codigo
+left join grh_plano_contas g on g.variavel = f.resultado
+
+where
+fc.modulo = 'FOLW'
+and fc.codigo = 8292
+order by 1
+
+
+
+-- Verifica as contas utilizadas no mês para a fórmula de pagamento
+
+select f.codigo, pc.numero_conta, pc.descricao, f.resultado, f.ordem, f.expressao
+from aac_formula f
+left join grh_plano_contas pc
+on pc.variavel = f.resultado
+where f.codigo = '8292'
+order by 5;
+
+
+-- Verifica quais funcionários pertencem a um determinado departamento de acordo
+-- com a tabela do AAC
+
+select u.codigo_usuario, u.nome, u.nome_completo, uc.chapa, au.modulo
+
+from aac_usuarios u
+inner join aac_usuario_complemento uc
+inner join grh_cadastro_funcionarios cf
+inner join aac_acessos_usuario au
+on u.codigo_usuario = uc.codigo_usuario
+on u.codigo_usuario = au.codigo
+on uc.chapa = cf.c000
+where u.nome_completo like 'ANEXO%'
+order by 1;
+
+
+-- Verifica a data por ordem decrescente que o usuário entrou no Construtor de Fórmulas
+
+select *
+from aac_auditoria u
+where u.codigo_usuario = '2585'
+and u.modulo = 'FOLW'
+and u.ocorrencia containing 'Construtor de Formula'
+order by u.data_ocorrencia desc;
+
+
+-- Verifica qual usuário entrou no Construtor de Fórmulas
+
+select distinct cf.codigo_usuario
+from aac_auditoria cf
+where
+-- cf.codigo_usuario = '2583'
+cf.modulo = 'FOLW'
+and cf.ocorrencia containing 'Construtor de Formula'
+order by cf.data_ocorrencia desc;
+
+
+
+-- Exibe o valor do salário da chapa 12341 na competência de 201311
+
+select pc.valor
+from grh_cadastro_funcionarios f
+left join grh_salarios pc
+on pc.referencia = f.c006
+and pc.jornada = f.c007
+and pc.letra = f.c008
+where f.c000 = '14203'
+and pc.competencia = '201312'
+order by 1;
+
+
+-- Verifica quem incluiu ou alterou a fórmula da Folha
+
+select *
+from aac_auditoria u
+where u.data_ocorrencia containing '2013'
+and u.modulo = 'FOLW'
+-- and u.ocorrencia containing 'Incluiu a formula'
+and u.ocorrencia containing 'Alterou a formula'
+order by 6;
+
+-- Verifica se o funcionário está de férias
+
+select cf.c000, cf.c001,
+fp.data_saida, fp.data_retorno
+
+from
+grh_cadastro_funcionarios cf
+inner join grh_ferias_parcelas fp
+inner join grh_ferias f
+
+on fp.ref_ferias = f.referencial
+on f.chapa = cf.c000
+
+where cf.c000 = '5746'
+order by 1;
+
+
+-- Verifica se o funcionário está afastado
+
+select af.chapa, af.data_inicio, af.data_retorno, af.dias, af.motivo, tp.descricao
+from grh_afastamentos af
+inner join grh_afastamento_tipos tp on af.motivo = tp.chave
+where af.chapa = '2590'
+order by 1;
+
+
+-- Verifica o local de trabalho do funcionário
+
+select cf.c000, cf.c001, cf.u018, lt.descricao
+from grh_cadastro_funcionarios cf
+inner join grh_local_trabalho lt on lt.codigo = cf.c065
+where cf.c000 = '18703' or cf.c000 = '16144' or cf.c000 = '19529' or cf.c000 = '19601' or cf.c000 = '19651'
+order by 1;
+
+
+-- Verifica o login do funcionário no SIAP
+
+select cf.c000, cf.c001, u.nome, u.nome_completo
+from
+grh_cadastro_funcionarios cf
+inner join aac_usuario_complemento uc on uc.chapa = cf.c000
+inner join aac_usuarios u on u.codigo_usuario = uc.codigo_usuario
+
+-- where cf.c000 = '14850' -- Pesquisa pelo nº da chapa
+-- where cf.c001 containing 'CONSTANTINO' -- Pesquisa por nome
+-- where u.nome = 'SONIAG' -- Pesquisa por login
+order by 1;
+
+
+-- Verifica o login e o nome do aprendiz no AAC
+
+select *
+from
+aac_usuarios u
+
+where
+-- u.nome_completo containing 'BRUNA' -- Pesquisa por nome
+u.nome_completo containing 'DEAG'
+order by 1;
+
+select *
+
+-- u.codigo_usuario, g.modulo, d.chapa, e.c001, u.nome_completo
+from
+aac_componentes_grupo c
+
+-- join aac_acessos_usuario g on g.codigo = c.codigo_usuario
+-- join aac_usuario_complemento d on d.codigo_usuario = g.codigo
+-- join grh_cadastro_funcionarios e on e.c000 = d.chapa
+join aac_usuarios u on u.codigo_usuario = c.codigo_usuario
+
+where c.codigo_grupo = 24
+order by 1;
+
+
+-- Verifica qual usuário alterou determinado campo, qual o valor anterior e o atual
+
+select
+a.campo_chave, a.campo, a.data, a.usuario, a.conteudo_modificado, a.valor_atual,
+b.codigo_usuario, b.chapa,
+c.c000, c.c001
+
+from
+aac_usuario_complemento b
+inner join grh_cadastro_funcionarios_m a on a.usuario = b.codigo_usuario
+inner join grh_cadastro_funcionarios c on b.chapa = c.c000
+
+where
+a.data between '01.11.2013 00:00' and '26.12.2013 23:59'
+order by 3;
+
+
+-- Exibe a quantidade de processos abertos por mês
+
+select
+    count(case when data_autuacao between '01.01.2013 00:00' and '31.01.2013 23:59' then 1 else null end) as JAN,
+    count(case when data_autuacao between '01.02.2013 00:00' and '28.02.2013 23:59' then 1 else null end) as FEV,
+    count(case when data_autuacao between '01.03.2013 00:00' and '31.03.2013 23:59' then 1 else null end) as MAR,
+    count(case when data_autuacao between '01.04.2013 00:00' and '30.04.2013 23:59' then 1 else null end) as ABR,
+    count(case when data_autuacao between '01.05.2013 00:00' and '31.05.2013 23:59' then 1 else null end) as MAI,
+    count(case when data_autuacao between '01.06.2013 00:00' and '30.06.2013 23:59' then 1 else null end) as JUN,
+    count(case when data_autuacao between '01.07.2013 00:00' and '31.07.2013 23:59' then 1 else null end) as JUL,
+    count(case when data_autuacao between '01.08.2013 00:00' and '31.08.2013 23:59' then 1 else null end) as AGO,
+    count(case when data_autuacao between '01.09.2013 00:00' and '30.09.2013 23:59' then 1 else null end) as STB,
+    count(case when data_autuacao between '01.10.2013 00:00' and '31.10.2013 23:59' then 1 else null end) as OUT,
+    count(case when data_autuacao between '01.11.2013 00:00' and '30.11.2013 23:59' then 1 else null end) as NOV
+
+from pro_cadastro
+
+order by 1;
+
+
+
+-- Exibe a média de processos abertos no período
+
+SELECT
+   AVG(a.contagem) MEDIA
+FROM
+   (
+    SELECT DISTINCT
+        udf_day(data_autuacao) || udf_month(data_autuacao) data,
+        COUNT(processo_geral) contagem
+    FROM
+        pro_cadastro p
+    WHERE
+        p.data_autuacao BETWEEN '01.01.2013 00:00' AND '16.12.2013 23:59'
+        AND p.data_autuacao IS NOT NULL
+    GROUP BY
+        1
+   ) a
+
+
+
+-- Exibe a média de processos abertos no ano
+
+SELECT udf_month(c.data_autuacao), COUNT(1) qtde
+FROM pro_cadastro c
+WHERE udf_year(c.data_autuacao) = 2013
+GROUP BY 1
+
+ 
+-- Exibe a média de processos abertos no ano(2)
+
+SELECT
+    AVG(t.qtde)
+FROM (
+    SELECT
+        COUNT(1) qtde
+    FROM pro_cadastro c
+    WHERE udf_year(c.data_autuacao) = 2013
+    GROUP BY udf_month(c.data_autuacao)
+    ) AS t
+
+
+-- Verifica o login do funcionário no SIAP, módulos que possui acesso e se está bloqueado
+
+select cf.c000, cf.c001, cf.u018, u.nome, u.nome_completo, b.codigo, b.modulo, b.bloqueado
+from
+grh_cadastro_funcionarios cf
+left join aac_usuario_complemento uc on uc.chapa = cf.c000
+left join aac_usuarios u on u.codigo_usuario = uc.codigo_usuario
+left join aac_acessos_usuario b on b.codigo = u.codigo_usuario
+
+where u.codigo_usuario = '4218' or u.codigo_usuario = '4730'
+-- where cf.c000 = '13713' -- Pesquisa pelo nº da chapa
+-- where cf.c001 containing 'CONSTANTINO' -- Pesquisa por nome
+-- where u.nome = 'SUB'
+-- where cf.c065 = 'AAG*'
+order by 1;
+
+
+-- Verifica o login, módulos que possui acesso e se está bloqueado
+
+select u.codigo_usuario, u.nome, u.nome_completo, b.modulo, b.bloqueado
+from
+aac_usuarios u
+inner join aac_acessos_usuario b on b.codigo = u.codigo_usuario
+
+-- where u.nome_completo = 'JARI'
+where u.nome containing 'JACKSON'
+order by 1;
+
+
+-- Verifica os Celetistas demitidos em determinado mês
+
+select a.c000, a.c001, a.c002, a.c012, a.c006, a.u018, a.c019, a.u125
+from grh_cadastro_funcionarios a
+where /*a.c019 is not null
+and*/ a.c012 between '01.11.2013 00:00' and '30.11.2013 23:59'
+
+order by 1;
+
+
+-- Verifica se o cadastro do funcionário foi alterado e qual usuário alterou
+
+
+select a.codigo_usuario, b.nome, b.nome_completo, a.modulo, a.data_ocorrencia, a.ocorrencia
+
+from
+aac_auditoria a
+inner join aac_usuarios b on b.codigo_usuario = a.codigo_usuario
+inner join aac_usuario_complemento u on a.codigo_usuario = u.codigo_usuario
+
+where a.data_ocorrencia between '28.01.2014 00:00' and '28.01.2014 19:00'
+and a.modulo = 'GRHW'
+and a.ocorrencia containing '60527' and a.ocorrencia containing 'alterou'
+order by 5;
+
+
+/*
+
+-- Verifica o login do funcionário no SIAP
+
+select cf.c000, cf.c001, u.nome, u.nome_completo
+from
+grh_cadastro_funcionarios cf
+inner join aac_usuario_complemento uc on uc.chapa = cf.c000
+inner join aac_usuarios u on u.codigo_usuario = uc.codigo_usuario
+
+where cf.c000 = '13564' -- Pesquisa pelo nº da chapa
+
+order by 1;
+
+
+
+-- Verifica o conteúdo alterado (Local de trabalho)
+
+select d.nome, d.nome_completo, e.modulo, m.data, m.campo, e.descricao_campo, l.descricao as anterior, l2.descricao as atual
+from
+
+aac_usuarios d
+inner join grh_cadastro_funcionarios_m m on d.codigo_usuario = m.usuario
+inner join aac_dicionario_dados e on e.nome_campo = m.campo
+inner join grh_local_trabalho l on l.codigo = m.conteudo_modificado
+inner join grh_local_trabalho l2 on l2.codigo = m.valor_atual -- Código do valor atual
+
+where
+d.codigo_usuario = '6504'
+and e.modulo = 'GRHW'
+and m.data between '25.11.2013 12:54' and '25.11.2013 13:00'
+
+order by 1;
+
+*/
+
+
+
+-- Identifica o usuário do AAC
+
+select u.codigo_usuario, c.c001
+from
+aac_usuario_complemento u
+inner join grh_cadastro_funcionarios c on c.c000 = u.chapa
+
+where u.codigo_usuario = '2583'
+
+order by 1;
+
+-- Verifica se o usuário logou no sistema
+
+select *
+from aac_auditoria a
+where a.codigo_usuario = '2463'
+and a.data_ocorrencia >= '03.02.2014 00:00'
+
+
+-- Verifica se o local de trabalho foi alterado, qual o valor anterior e o atual
+
+select m.usuario, m.data, d.modulo, l.descricao, l2.descricao as atual
+from
+
+aac_dicionario_dados d
+inner join grh_cadastro_funcionarios_m m on m.campo = d.nome_campo  -- Nome do campo
+inner join grh_local_trabalho l on l.codigo = m.conteudo_modificado  -- Código do valor anterior
+inner join grh_local_trabalho l2 on l2.codigo = m.valor_atual -- Código do valor atual
+
+
+where
+--m.usuario = '6504'
+m.data between '29.01.2014 00:00' and '29.01.2014 20:00'
+and d.modulo = 'GRHW'
+order by 2;
+
+
+
+-- Localiza os funcionários de um determinado departamento
+
+select c.c000, c.c001, c.c065, l.descricao, b.nome
+from grh_cadastro_funcionarios c
+left join aac_usuario_complemento u on u.chapa = c.c000
+left join grh_local_trabalho l on l.codigo = c.c065
+left join aac_usuarios b on b.codigo_usuario = u.codigo_usuario
+
+where c.c065 = 'AAG*' or c.c065 = 'AAP*' or c.c065 = 'FFI*' or c.c065 = 'K***'
+order by 3;
+
+
+-- Verifica quais usuários pertencem a um determinado grupo
+
+select g.codigo_grupo, g.nome_grupo, g.descricao, e.codigo_usuario, e.nome as LOGIN, e.nome_completo, d.chapa, u.c001 as NOME, u.u018 as CARGO, k.descricao as LOCAL_TRABALHO
+from
+aac_grupo_usuarios g
+join aac_componentes_grupo c on c.codigo_grupo = g.codigo_grupo
+join aac_usuarios e on e.codigo_usuario = c.codigo_usuario
+join aac_usuario_complemento d on d.codigo_usuario = e.codigo_usuario
+left join grh_cadastro_funcionarios u on u.c000 = d.chapa
+left join grh_local_trabalho k on k.codigo = u.c065
+
+where
+g.codigo_grupo = '46'
+and e.intruso = 'N'
+order by 10;
+
+
+
+-- Verifica quais aprendizes pertencem a um departamento
+
+SELECT DISTINCT
+
+ U.NOME_COMPLETO
+--  ,c.DESCRICAO          AS CARGO
+FROM
+ aac_componentes_grupo cg
+JOIN
+ aac_usuarios u ON u.codigo_usuario = cg.codigo_usuario
+JOIN
+ aac_usuario_complemento uc ON uc.codigo_usuario = u.codigo_usuario
+
+WHERE
+ cg.codigo_grupo IN (
+                   2, 4, 24, 30
+                   )
+ AND u.INTRUSO <> 'I'
+ AND uc.CHAPA < 0 or uc.CHAPA IS NULL
+ and u.nome_completo containing 'DEPROT'
+
+
+--
+
+select *
+from
+aac_usuarios u
+where u.nome_completo containing 'DINF'
+
+
+
+
+
+
