@@ -439,7 +439,278 @@ aac_usuarios u
 where u.nome_completo containing 'DINF'
 
 
+-- Verifica funcionário sem CPF
 
+select
+    c.c000 as CHAPA,
+    c.c001 as NOME,
+    c.c049 as FP,
+    c.c031 as CPF
+from
+    grh_cadastro_funcionarios c
+where
+    c.c049 = 'S' and
+    /*c.c031 = '' or */
+    c.c031 is null
+order by c.c000
+
+
+-- Verifica a quantidade de carnês em que constam endereços em branco ou nulo
+
+
+select
+    /*d.u143 as ENDERECO,
+    d.u147 as COMP,
+    d.u148 as BAIRRO,
+    d.u149 as CIDADE,
+    d.u150 as CEP,
+    d.i000 as SI, */
+    count(*) as QTD
+from
+    iptu_dados_anuais d
+where
+    d.competencia = '201400' and
+    d.u143 = '' or
+    d.u150 = '' and
+    d.u143 is null and
+    d.u150 is null and
+    d.u143 = '<EMPTY>'
+
+-- Verifica quais e qual a quantidade de carnês com CEP's com menos de 8 caracteres
+
+select
+    d.i000 as SIGLA,
+    d.u143 as ENDERECO,
+    d.competencia,
+    d.u147 as COMPLEMENTO,
+    d.u148 as BAIRRO,
+    d.u149 as CIDADE,
+    d.u150 as CEP,
+    udf_len(udf_trim(d.u150)) as QTD
+from
+    iptu_dados_anuais d
+where
+    d.competencia = '201400' and
+    d.u150 is not null and
+    d.u143 <> '' and
+    udf_len(udf_trim(d.u150))<> 8
+order by d.u148,d.u143
+
+
+-- Verifica quais carnês estão com CEP diferente de 8 caracteres
+
+select distinct
+    d.i000 as SI,
+    d.u143 as ENDERECO,
+    d.u147 as COMP,
+    d.u148 as BAIRRO,
+    d.u149 as CIDADE,
+    d.u150 as CEP
+from
+    iptu_dados_anuais d
+where
+    d.competencia = '201400' and
+    udf_len(udf_trim(d.u150))<> 8
+order by d.u148,d.u143,d.i000
+
+
+
+-- Inscrições com valor zero ou nulo - Imóveis
+
+
+select
+   c.aviso,
+   c.competencia,
+   i.i000 as INSCRICAO,
+   t.descricao as TRIBUTO,
+   s.descricao as STATUS,
+   p.valor
+from iptu_parcelas p
+    inner join iptu_carnes c on c.referencial = p.referencial_carne
+    inner join iptu_dados_anuais da on da.referencial = c.referencial_dados
+    inner join tri_tributos t on t.tributo = c.tributo
+    inner join v_status_carne s on s.status = c.status
+    inner join ctec_imoveis i on i.i000 = da.i000
+where
+   valor <= 0
+   or valor is null
+group by c.aviso, c.competencia, i.i000,  t.descricao, s.descricao, p.valor
+
+
+
+-- Inscrições com valor zero ou nulo - Mobiliário
+
+select
+   c.aviso,
+   c.competencia,
+   m.m000 as INSCRICAO,
+   t.descricao as TRIBUTO,
+   s.descricao as STATUS,
+   p.valor
+from issw_parcelas p
+    inner join issw_carnes c on c.referencial = p.referencial_carne
+    inner join issw_dados_anuais da on da.referencial = c.referencial_dados
+    inner join tri_tributos t on t.tributo = c.tributo
+    inner join v_status_carne s on s.status = c.status
+    inner join ctec_mobiliario m on m.m000 = da.m000
+where
+   valor <= 0
+   or valor is null
+group by c.aviso, c.competencia, m.m000,  t.descricao, s.descricao, p.valor
+
+
+-- Referencial zero ou nulo - IPTU
+
+select
+   c.referencial,
+   c.referencial_dados,
+   c.competencia,
+   t.descricao as TRIBUTO,
+   c.vlr_pago as PAGO,
+   s.descricao as STATUS,
+   p.nome_razao as DEVEDOR
+from
+   iptu_carnes c
+   left join iptu_dados_anuais da on c.referencial_dados = da.referencial
+   left join tri_tributos t on t.tributo = c.tributo
+   left join v_status_carne s on s.status = c.status
+   left join sis_pessoa p on p.id_pessoa = c.devedor
+where
+   da.referencial is null
+   and c.referencial_dados > 0
+   and c.referencial_dados is not null
+order by c.tributo
+
+
+-- IC inválidas
+
+
+SELECT
+   ld.d019 as IC,
+   UDF_LEN(UDF_TRIM(ld.d019)) as QTDE,
+   ld.d017 as IDA,
+   ld.d028 as EXERCICIO_INSCRICAO,
+   ld.d010 as VALOR,
+   ld.d001 as MODULO,
+   s.descricao as STATUS
+FROM
+   geda_ldivida ld
+   LEFT JOIN v_status_divida_ativa s on s.status = ld.d029
+WHERE
+   (d019 < '1' AND UDF_LEN(UDF_TRIM(d019))<5 )
+   OR d019 is null
+   OR (UDF_LEN(UDF_TRIM(d019)) not in (5,6,7,14,18,19,20) AND d001<>'PRP')
+ORDER BY ld.d001, ld.d028
+
+
+-- IPTU e ISS - IC Inválidas
+
+
+  SELECT
+   d.d019 as INSCRICAO,
+   d045 as ANO_BASE,
+   d.d001 as MODULO_GEDA,
+   t.modulo as MODULO_TRIBUTO,
+   d.d020 as TRIBUTO,
+   t.descricao as DESCRICAO,
+   s.descricao as STATUS
+FROM
+   geda_ldivida d
+   LEFT JOIN tri_tributos t on t.tributo = d.d020
+   LEFT JOIN v_status_divida_ativa s on s.status = d.d029
+WHERE
+   ((UDF_LEN(UDF_TRIM(d.d019))) in (14,18,19,20) AND d.d001='ISSW')
+   OR
+   ((UDF_LEN(UDF_TRIM(d.d019))) in (5,6,7) AND d.d001='IPTU')
+ORDER BY d.d001
+
+
+
+-- Funcionários da SEAD com acesso ao PRP 
+ 
+
+SELECT DISTINCT
+ f.C000         AS CHAPA
+ ,f.c001        AS NOME
+ ,lt.descricao  AS LOCAL_TRABALHO
+ ,c.descricao   AS CARGO
+
+FROM
+ aac_componentes_grupo cg
+JOIN aac_grupo_usuarios gu       ON cg.codigo_grupo = gu.codigo_grupo
+JOIN aac_usuarios       u        ON cg.codigo_usuario = u.codigo_usuario
+JOIN aac_usuario_complemento uc  ON uc.codigo_usuario = u.codigo_usuario
+JOIN grh_cadastro_funcionarios f ON f.c000 = uc.chapa
+JOIN grh_local_trabalho lt       ON lt.codigo = f.c065
+JOIN grh_cargos c                ON c.codigo_cargo = f.c005
+
+WHERE
+ cg.codigo_grupo IN (4, 132, 112, 113, 127, 61, 122, 71, 56, 125, 126, 128, 129, 130, 121, 34)
+ AND u.INTRUSO IN ('N','S','R','F')
+ AND lt.DESCRICAO CONTAINING 'SEAD'
+ORDER BY
+ 3,1
+
+
+-- Funcionários da SEAD com acesso ao PRP (com mais detalhes)
+
+
+select m.codigo, m.modulo, u.nome_grupo, u.descricao, c.codigo_usuario, l.chapa, f.c001 as NOME_FUNC, t.descricao as LOCAL_TRABALHO
+from aac_acessos_grupo m
+inner join aac_grupo_usuarios u on m.codigo = u.codigo_grupo
+inner join aac_componentes_grupo c on u.codigo_grupo = c.codigo_grupo
+inner join aac_usuario_complemento l on l.codigo_usuario = c.codigo_usuario
+inner join grh_cadastro_funcionarios f on f.c000 = l.chapa
+inner join grh_local_trabalho t on t.codigo = f.c065
+
+where m.modulo = 'PRP'
+and m.bloqueado = 'N'
+and t.descricao containing 'SEAD'
+
+order by 8;
+
+
+-- IC inválida para o módulo
+
+
+SELECT
+   d.d019 as INSCRICAO,
+   d045 as ANO_BASE,
+   d.d001 as MODULO_GEDA,
+   t.modulo as MODULO_TRIBUTO,
+   d.d020 as TRIBUTO,
+   t.descricao as DESCRICAO,
+   s.descricao as STATUS
+FROM
+   geda_ldivida d
+   LEFT JOIN tri_tributos t on t.tributo = d.d020
+   LEFT JOIN v_status_divida_ativa s on s.status = d.d029
+WHERE
+   d.d001 <> t.modulo
+ORDER BY d.d001
+
+
+
+-- Referencial inválido
+
+
+select
+   c.referencial,
+   c.referencial_dados,
+   c.competencia,
+   t.descricao as TRIBUTO,
+   c.vlr_pago as PAGO,
+   s.descricao as STATUS,
+   p.nome_razao as DEVEDOR
+from
+   iptu_carnes c
+   inner join tri_tributos t on t.tributo = c.tributo
+   inner join v_status_carne s on s.status = c.status
+   left join sis_pessoa p on p.id_pessoa = c.devedor
+where
+   referencial_dados < 1
+   or referencial_dados is null
+order by c.tributo
 
 
 
